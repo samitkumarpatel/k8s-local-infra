@@ -9,6 +9,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: hello-world
+  labels:
+    app: hello-world
   namespace: application
 spec:
   replicas: 1
@@ -51,6 +53,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: echo-server
+  labels:
+    app: echo-server
   namespace: application
 spec:
   replicas: 1
