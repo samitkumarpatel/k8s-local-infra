@@ -1,0 +1,116 @@
+---
+# config map for lgtm to resolve If you host grafana under a subpath make sure your grafana.ini root_url setting includes subpath. If not using a reverse proxy make sure to set serve_from_sub_path to true.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lgtm-config
+data:
+  lgtm.ini: |
+    [server]
+    root_url = http://localhost/lgtm
+    serve_from_sub_path = true
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lgtm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lgtm
+  template:
+    metadata:
+      labels:
+        app: lgtm
+    spec:
+      containers:
+        - name: lgtm
+          image: grafana/otel-lgtm:latest
+          ports:
+            - containerPort: 3000
+            - containerPort: 4317
+            - containerPort: 4318
+          readinessProbe:
+            exec:
+              command:
+                - cat
+                - /tmp/ready
+          # NOTE: By default OpenShift does not allow writing the root directory.
+          # Thats why the data dirs for grafana, prometheus and loki can not be
+          # created and the pod never becomes ready.
+          # See: https://github.com/grafana/docker-otel-lgtm/issues/132
+          volumeMounts:
+            - name: tempo-data
+              mountPath: /data/tempo
+            - name: grafana-data
+              mountPath: /data/grafana
+            - name: loki-data
+              mountPath: /data/loki
+            - name: loki-storage
+              mountPath: /loki
+            - name: p8s-storage
+              mountPath: /data/prometheus
+            - name: pyroscope-storage
+              mountPath: /data/pyroscope
+            - name: lgtm-config
+              mountPath: /otel-lgtm/lgtm.ini
+              subPath: lgtm.ini
+      volumes:
+        - name: tempo-data
+          emptyDir: {}
+        - name: loki-data
+          emptyDir: {}
+        - name: grafana-data
+          emptyDir: {}
+        - name: loki-storage
+          emptyDir: {}
+        - name: p8s-storage
+          emptyDir: {}
+        - name: pyroscope-storage
+          emptyDir: {}
+        - name: lgtm-config
+          configMap:
+            name: lgtm-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lgtm
+spec:
+  selector:
+    app: lgtm
+  ports:
+    - name: grafana
+      protocol: TCP
+      port: 3000
+      targetPort: 3000
+    - name: otel-grpc
+      protocol: TCP
+      port: 4317
+      targetPort: 4317
+    - name: otel-http
+      protocol: TCP
+      port: 4318
+      targetPort: 4318
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lgtm
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /lgtm(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: lgtm
+            port:
+              number: 3000
