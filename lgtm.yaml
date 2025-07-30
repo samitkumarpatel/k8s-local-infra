@@ -1,16 +1,4 @@
 ---
-# config map for lgtm to resolve If you host grafana under a subpath make sure your grafana.ini root_url setting includes subpath. If not using a reverse proxy make sure to set serve_from_sub_path to true.
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: lgtm-config
-data:
-  lgtm.ini: |
-    [server]
-    root_url = http://localhost/lgtm
-    serve_from_sub_path = true
-
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -29,9 +17,13 @@ spec:
         - name: lgtm
           image: grafana/otel-lgtm:latest
           ports:
-            - containerPort: 3000
-            - containerPort: 4317
-            - containerPort: 4318
+            - containerPort: 3000  # Grafana UI
+            - containerPort: 4317  # OTLP gRPC
+            - containerPort: 4318  # OTLP HTTP
+            - containerPort: 3100  # Loki
+            - containerPort: 9090  # Prometheus
+            - containerPort: 3200  # Tempo
+            - containerPort: 4040  # Pyroscope
           readinessProbe:
             exec:
               command:
@@ -41,6 +33,13 @@ spec:
           # Thats why the data dirs for grafana, prometheus and loki can not be
           # created and the pod never becomes ready.
           # See: https://github.com/grafana/docker-otel-lgtm/issues/132
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
           volumeMounts:
             - name: tempo-data
               mountPath: /data/tempo
@@ -54,9 +53,13 @@ spec:
               mountPath: /data/prometheus
             - name: pyroscope-storage
               mountPath: /data/pyroscope
-            - name: lgtm-config
-              mountPath: /otel-lgtm/lgtm.ini
-              subPath: lgtm.ini
+          env:
+            - name: GF_SERVER_DOMAIN
+              value: "localhost"
+            - name: GF_SERVER_ROOT_URL
+              value: http://localhost/lgtm
+            - name: GF_SERVER_SERVE_FROM_SUB_PATH
+              value: "true"
       volumes:
         - name: tempo-data
           emptyDir: {}
@@ -70,9 +73,6 @@ spec:
           emptyDir: {}
         - name: pyroscope-storage
           emptyDir: {}
-        - name: lgtm-config
-          configMap:
-            name: lgtm-config
 ---
 apiVersion: v1
 kind: Service
@@ -94,6 +94,22 @@ spec:
       protocol: TCP
       port: 4318
       targetPort: 4318
+    - name: loki
+      protocol: TCP
+      port: 3100
+      targetPort: 3100
+    - name: prometheus
+      protocol: TCP
+      port: 9090
+      targetPort: 9090
+    - name: tempo
+      protocol: TCP
+      port: 3200
+      targetPort: 3200
+    - name: pyroscope
+      protocol: TCP
+      port: 4040
+      targetPort: 4040
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -101,7 +117,7 @@ metadata:
   name: lgtm
   annotations:
     nginx.ingress.kubernetes.io/use-regex: "true"
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/rewrite-target: /lgtm/$2
 spec:
   ingressClassName: nginx
   rules:
