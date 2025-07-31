@@ -114,74 +114,28 @@ data:
         source = "alloy",
       }
     }
-
+    
     loki.source.kubernetes "pod_logs" {
       targets    = discovery.kubernetes.pods.targets
-      forward_to = [loki.process.add_labels.receiver]
+      forward_to = [loki.process.loki_processor.receiver]
     }
 
-    loki.process "add_labels" {
+    loki.process "loki_processor" {
       forward_to = [loki.write.default.receiver]
 
-      // Extract JSON fields if present
-      stage.json {
-        expressions = {
-          level     = "level",
-          timestamp = "time",
-          message   = "msg",
-          logger    = "logger",
-        }
-      }
-
-      // Set log level label if extracted
       stage.labels {
         values = {
-          level = null,
+          namespace = "__meta_kubernetes_namespace",
+          pod_name  = "__meta_kubernetes_pod_name", 
+          container = "__meta_kubernetes_pod_container_name",
         }
-      }
-
-      // Parse common log formats
-      stage.regex {
-        expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2}[T ]\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})?).* (?P<level>TRACE|DEBUG|INFO|WARN|WARNING|ERROR|FATAL|PANIC).*"
-      }
-
-      // Set parsed level as label
-      stage.labels {
-        values = {
-          level = null,
-        }
-      }
-
-      // Parse Kubernetes pod logs format
-      stage.regex {
-        expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+Z) (?P<stream>stdout|stderr) (?P<logtag>[FP]) (?P<message>.*)"
-      }
-
-      // Add stream label
-      stage.labels {
-        values = {
-          stream = null,
-        }
-      }
-
-      // Use extracted timestamp if available
-      stage.timestamp {
-        source = "timestamp"
-        format = "RFC3339Nano"
-      }
-
-      // Drop empty or debug messages to reduce noise (optional)
-      stage.drop {
-        expression = "(?i)(debug|trace)"
-        drop_counter_reason = "debug_logs_dropped"
       }
     }
-
+    
     loki.write "default" {
       endpoint {
         url = "http://lgtm.default.svc.cluster.local:3100/loki/api/v1/push"
       }
-      
       external_labels = {
         cluster = "kind-local",
         source = "alloy",

@@ -1,29 +1,24 @@
 # kubectl --kubeconfig $(pwd)/kubeconfig apply -f test-ingress.yaml
 ---
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: application
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: hello-world
+  name: app-ingress
   labels:
-    app: hello-world
+    app: app-ingress
   namespace: application
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: hello-world
+      app: app-ingress
   template:
     metadata:
       labels:
-        app: hello-world
+        app: app-ingress
     spec:
       containers:
-      - name: hello-world
+      - name: app-ingress
         image: gcr.io/google-samples/hello-app:1.0
         ports:
         - containerPort: 8080
@@ -38,11 +33,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: hello-world-service
+  name: app-ingress-service
   namespace: application
 spec:
   selector:
-    app: hello-world
+    app: app-ingress
   ports:
   - port: 80
     targetPort: 8080
@@ -52,22 +47,22 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: echo-server
+  name: app-ingress-echo
   labels:
-    app: echo-server
+    app: app-ingress-echo
   namespace: application
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: echo-server
+      app: app-ingress-echo
   template:
     metadata:
       labels:
-        app: echo-server
+        app: app-ingress-echo
     spec:
       containers:
-      - name: echo-server
+      - name: app-ingress-echo
         image: ealen/echo-server:latest
         ports:
         - containerPort: 80
@@ -82,11 +77,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: echo-server-service
+  name: app-ingress-echo-service
   namespace: application
 spec:
   selector:
-    app: echo-server
+    app: app-ingress-echo
   ports:
   - port: 80
     targetPort: 80
@@ -96,7 +91,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: test-ingress
+  name: app-ingress
   namespace: application
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
@@ -109,7 +104,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: hello-world-service
+            name: app-ingress-service
             port:
               number: 80
   - http:
@@ -118,9 +113,9 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: echo-server-service
+            name: app-ingress-echo-service
             port:
               number: 80
 
-#kubectl wait --for=condition=available --timeout=300s deployment/hello-world -n application
-#kubectl wait --for=condition=available --timeout=300s deployment/echo-server -n application
+#kubectl wait --for=condition=available --timeout=300s deployment/app-ingress -n application
+#kubectl wait --for=condition=available --timeout=300s deployment/app-ingress-echo -n application
