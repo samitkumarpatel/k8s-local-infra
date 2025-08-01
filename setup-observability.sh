@@ -9,13 +9,13 @@ KUBECONFIG_PATH="$(pwd)/kubeconfig"
 echo "🚀 Deploying observability stack..."
 
 echo "📊 Deploying LGTM stack..."
-kubectl --kubeconfig "$KUBECONFIG_PATH" apply -f lgtm.yaml
+kubectl --kubeconfig "$KUBECONFIG_PATH" apply -f observability/lgtm.yaml
 
 echo "📈 Deploying kube-state-metrics..."
-kubectl --kubeconfig "$KUBECONFIG_PATH" apply -f kube-state-metrics.yaml
+kubectl --kubeconfig "$KUBECONFIG_PATH" apply -f observability/kube-state-metrics.yaml
 
 echo "🔍 Deploying Grafana Alloy..."
-kubectl --kubeconfig "$KUBECONFIG_PATH" apply -f alloy.yaml
+kubectl --kubeconfig "$KUBECONFIG_PATH" apply -f observability/alloy.yaml
 
 
 echo ""

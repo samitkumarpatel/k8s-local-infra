@@ -2,19 +2,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: app-trace
+  name: trace-example
   labels:
-    app: app-trace
+    app: trace-example
   namespace: application
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
-      app: app-trace
+      app: trace-example
   template:
     metadata:
       labels:
-        app: app-trace
+        app: trace-example
       annotations:
         # Enable Prometheus metrics scraping
         prometheus.io/scrape: "true"
@@ -22,7 +22,7 @@ spec:
         prometheus.io/path: "/metrics"
     spec:
       containers:
-      - name: app-trace
+      - name: trace-example
         image: nginx:alpine
         ports:
         - containerPort: 80
@@ -38,11 +38,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: app-trace
+  name: trace-example
   namespace: application
 spec:
   selector:
-    app: app-trace
+    app: trace-example
   ports:
   - name: http
     port: 80
@@ -51,7 +51,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: app-trace
+  name: trace-example
   namespace: application
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
@@ -64,6 +64,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: app-trace
+            name: trace-example
             port:
               number: 80

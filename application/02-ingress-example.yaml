@@ -3,22 +3,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: app-ingress
+  name: ingress-example
   labels:
-    app: app-ingress
+    app: ingress-example
   namespace: application
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: app-ingress
+      app: ingress-example
   template:
     metadata:
       labels:
-        app: app-ingress
+        app: ingress-example
     spec:
       containers:
-      - name: app-ingress
+      - name: ingress-example
         image: gcr.io/google-samples/hello-app:1.0
         ports:
         - containerPort: 8080
@@ -33,11 +33,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: app-ingress-service
+  name: ingress-example-service
   namespace: application
 spec:
   selector:
-    app: app-ingress
+    app: ingress-example
   ports:
   - port: 80
     targetPort: 8080
@@ -47,22 +47,22 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: app-ingress-echo
+  name: ingress-example-echo
   labels:
-    app: app-ingress-echo
+    app: ingress-example-echo
   namespace: application
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: app-ingress-echo
+      app: ingress-example-echo
   template:
     metadata:
       labels:
-        app: app-ingress-echo
+        app: ingress-example-echo
     spec:
       containers:
-      - name: app-ingress-echo
+      - name: ingress-example-echo
         image: ealen/echo-server:latest
         ports:
         - containerPort: 80
@@ -77,11 +77,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: app-ingress-echo-service
+  name: ingress-example-echo-service
   namespace: application
 spec:
   selector:
-    app: app-ingress-echo
+    app: ingress-example-echo
   ports:
   - port: 80
     targetPort: 80
@@ -91,7 +91,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: app-ingress
+  name: ingress-example
   namespace: application
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
@@ -104,7 +104,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: app-ingress-service
+            name: ingress-example-service
             port:
               number: 80
   - http:
@@ -113,9 +113,9 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: app-ingress-echo-service
+            name: ingress-example-echo-service
             port:
               number: 80
 
-#kubectl wait --for=condition=available --timeout=300s deployment/app-ingress -n application
-#kubectl wait --for=condition=available --timeout=300s deployment/app-ingress-echo -n application
+#kubectl wait --for=condition=available --timeout=300s deployment/ingress-example -n application
+#kubectl wait --for=condition=available --timeout=300s deployment/ingress-example-echo -n application
