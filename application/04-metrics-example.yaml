@@ -1,0 +1,57 @@
+---
+# Example application that exposes metrics for automatic scraping
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metrics-example-app
+  namespace: application
+  labels:
+    app: metrics-example
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metrics-example
+  template:
+    metadata:
+      labels:
+        app: metrics-example
+      annotations:
+        # These annotations tell Alloy to scrape metrics from this pod
+        prometheus.io/scrape: "true"      # Enable metrics scraping
+        prometheus.io/port: "8080"        # Port where metrics are exposed
+        prometheus.io/path: "/metrics"    # Path to metrics endpoint (optional, defaults to /metrics)
+    spec:
+      containers:
+      - name: app
+        image: prom/node-exporter:latest  # Example app that exposes metrics
+        ports:
+        - containerPort: 9100
+          name: metrics
+        # Override the default command to expose metrics on port 8080
+        command: ["/bin/node_exporter"]
+        args:
+        - "--web.listen-address=:8080"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metrics-example-service
+  namespace: application
+  labels:
+    app: metrics-example
+spec:
+  selector:
+    app: metrics-example
+  ports:
+  - name: metrics
+    port: 8080
+    targetPort: 8080
+  type: ClusterIP
