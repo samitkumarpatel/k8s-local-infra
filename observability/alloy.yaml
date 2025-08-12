@@ -67,6 +67,8 @@ data:
     }
 
     // Prometheus
+    
+    /*
     prometheus.scrape "kubelet" {
       targets = discovery.kubernetes.nodes.targets
       forward_to = [prometheus.remote_write.default.receiver]
@@ -94,7 +96,8 @@ data:
         insecure_skip_verify = true
       }
     }
-
+    */
+    
     prometheus.scrape "kube_state_metrics" {
       targets = [{
         __address__ = "kube-state-metrics.kube-system.svc.cluster.local:8080",
@@ -105,6 +108,65 @@ data:
       metrics_path = "/metrics"
     }
 
+    discovery.relabel "scrape_pods" {
+      targets = discovery.kubernetes.pods.targets
+
+      rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          regex = "kube-system|kube-public|kube-node-lease|local-path-storage|default|ingress-nginx|cert-manager|monitoring"
+          action = "drop"
+       }
+      
+      // Keep only pods with prometheus.io/scrape annotation = true
+      rule {
+        source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_scrape"]
+        regex         = "true"
+        action        = "keep"
+      }
+
+      // Add namespace as a label
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label  = "namespace"
+        action        = "replace"
+      }
+
+      // Add pod name as a label
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label  = "pod"
+        action        = "replace"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app"]
+        target_label  = "app"
+        action        = "replace"
+      }
+      
+      // If prometheus.io/port is set, use it as the scrape port
+      rule {
+        source_labels = ["__address__", "__meta_kubernetes_pod_annotation_prometheus_io_port"]
+        regex         = "([^:]+)(?::\\d+)?;(\\d+)"
+        replacement   = "$1:$2"
+        target_label  = "__address__"
+        action        = "replace"
+      }
+
+      // If prometheus.io/path is set, use it as the scrape path
+      rule {
+        source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_path"]
+        regex         = "(.+)"
+        target_label  = "__metrics_path__"
+        action        = "replace"
+      }
+    }
+
+    prometheus.scrape "pod_metrics" {
+      targets    = discovery.relabel.scrape_pods.output
+      forward_to = [prometheus.remote_write.default.receiver]
+    }
+    
     prometheus.remote_write "default" {
       endpoint {
         url = "http://lgtm.default.svc.cluster.local:9090/api/v1/write"
@@ -117,13 +179,12 @@ data:
     }
     
     //loki
-
     discovery.relabel "pod_logs" {
        targets = discovery.kubernetes.pods.targets
        
        rule {
           source_labels = ["__meta_kubernetes_namespace"]
-          regex = "kube-system|kube-public|kube-node-lease|local-path-storage"
+          regex = "kube-system|kube-public|kube-node-lease|local-path-storage|default|ingress-nginx|cert-manager|monitoring"
           action = "drop"
        }
        
@@ -131,10 +192,17 @@ data:
          source_labels = ["__meta_kubernetes_namespace"]
          target_label  = "namespace"
        }
+       
+       rule {
+        source_labels = ["__meta_kubernetes_pod_label_app"]
+        target_label  = "app"
+       }
+
        rule {
          source_labels = ["__meta_kubernetes_pod_name"]
          target_label  = "pod"
        }
+       
        rule {
          source_labels = ["__meta_kubernetes_pod_container_name"]
          target_label  = "container"

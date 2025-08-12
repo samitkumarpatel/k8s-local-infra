@@ -1,5 +1,4 @@
 ---
-# Example application that exposes metrics for automatic scraping
 apiVersion: apps/v1
 kind: Deployment
 metadata:
