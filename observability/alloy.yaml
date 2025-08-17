@@ -242,14 +242,17 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: alloy
-        image: grafana/alloy:v1.5.0
+        image: grafana/alloy:latest
+        command: ["/bin/sh", "-c"]
         args:
-        - run
-        - /etc/alloy/config.alloy
-        - --server.http.listen-addr=0.0.0.0:12345
-        - --cluster.enabled=false
-        - --disable-reporting=true
-        - --storage.path=/tmp/alloy
+          - ulimit -n 65535 && exec /bin/alloy run /etc/alloy/config.alloy --server.http.listen-addr=0.0.0.0:12345 --cluster.enabled=false --disable-reporting=true --storage.path=/tmp/alloy
+        # args:
+        # - run
+        # - /etc/alloy/config.alloy
+        # - --server.http.listen-addr=0.0.0.0:12345
+        # - --cluster.enabled=false
+        # - --disable-reporting=true
+        # - --storage.path=/tmp/alloy
         ports:
         - containerPort: 12345
           name: http-metrics
